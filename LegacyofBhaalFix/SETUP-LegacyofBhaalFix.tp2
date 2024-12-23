@@ -1,0 +1,610 @@
+BACKUP ~LegacyofBhaalFix/backup~
+AUTHOR ~shohy@126.com~
+
+VERSION ~v0.1~
+AUTO_EVAL_STRINGS
+
+README ~%MOD_FOLDER%/README.%LANGUAGE%.txt~
+AUTO_TRA ~%MOD_FOLDER%/tra/%s~
+
+LANGUAGE  ~American English~	~english~	~LegacyofBhaalFix/tra/english/setup.tra~
+LANGUAGE  ~Simplified Chinese~	~schinese~	~LegacyofBhaalFix/tra/schinese/setup.tra~
+
+BEGIN @1
+
+
+/*
+ACTION_IF FILE_CONTAINS_EVALUATED (~AERIE.DLG~ ~JoinParty()~) BEGIN
+	PRINT ~AA~
+END
+*/
+
+COPY ~%MOD_FOLDER%/2da/LOBf#excl.2da~ ~override/LOBf#excl.2da~
+COPY ~%MOD_FOLDER%/2da/LOBf#excp.2da~ ~override/LOBf#excp.2da~
+
+//战役脚本放入排除列表
+ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
+	COPY_EXISTING ~CAMPAIGN.2da~ ~override~
+		COUNT_2DA_ROWS 10 camprowmax	//至少10列column，row行数读入camprowmax
+		PATCH_IF camprowmax > 1 BEGIN
+			FOR (camprows = 1 ; camprows < camprowmax ; ++camprows) BEGIN
+				READ_2DA_ENTRY camprows 1 10 campscript	//WORLDSCRIPT名称				
+				INNER_ACTION BEGIN
+					APPEND ~LOBf#excl.2da~ ~%campscript%~
+				END
+			END
+		END
+	BUT_ONLY
+END
+
+//地图脚本放入排除列表
+COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
+	READ_ASCII 0x94 areabcs
+	PATCH_IF (FILE_EXISTS_IN_GAME ~%areabcs%.bcs~) BEGIN
+		INNER_ACTION BEGIN
+			APPEND ~LOBf#excl.2da~ ~%areabcs%~
+		END
+	END
+BUT_ONLY
+
+//读取生物对话，如果对话中有JoinParty()，则读取该生物所有脚本并放入排除列表。SHOUT脚本不算
+COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
+	READ_ASCII 0x2cc credialog
+	READ_ASCII 0x248 scoverride
+	READ_ASCII 0x250 scclass
+	READ_ASCII 0x258 scrace
+	READ_ASCII 0x260 scgeneral
+	READ_ASCII 0x268 scdefault
+	PATCH_IF FILE_EXISTS_IN_GAME ~%credialog%.dlg~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%credialog%.dlg~ ~JoinParty()~) BEGIN
+			INNER_ACTION BEGIN
+				APPEND ~LOBf#excp.2da~ ~%SOURCE_RES%~
+			END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scoverride%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scoverride%~ END
+			END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scclass%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scclass%~ END
+			END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scrace%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scrace%~ END
+			END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scgeneral%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scgeneral%~ END
+			END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scdefault%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scdefault%~ END
+			END
+		END
+	END
+BUT_ONLY
+
+//标记战斗相关脚本
+COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
+	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%SOURCE_RES%~) BEGIN
+		DECOMPILE_AND_PATCH BEGIN
+			//可能是生物战斗脚本，标记
+			REPLACE_TEXTUALLY ~!Allegiance(Myself,ENEMY)~ ~!Allegiance囧(Myself,ENEMY)~
+			REPLACE_TEXTUALLY ~Allegiance(Myself,ENEMY)~ ~Allegiance(Myself,ENEMY)
+			!GlobalGT("LOBfin#1","LOCALS",0)~
+			REPLACE_TEXTUALLY ~!Allegiance囧(Myself,ENEMY)~ ~!Allegiance(Myself,ENEMY)~
+
+			REPLACE_TEXTUALLY ~,Enemy()~ ~,Enemy(囧)~
+			REPLACE_TEXTUALLY ~Enemy()~ ~Enemy()
+			SetGlobal("LOBfin#2","LOCALS",0)~
+			REPLACE_TEXTUALLY ~,Enemy(囧)~ ~,Enemy()~
+
+			REPLACE_TEXTUALLY ~GroupAttack(~ ~GroupAttack囧(~
+			REPLACE_TEXTUALLY ~,Attack(~ ~,Attack囧(~
+			REPLACE_TEXTUALLY ~Attack(~ ~SetGlobal("LOBfin#3","LOCALS",0)
+			Attack(~
+			REPLACE_TEXTUALLY ~GroupAttack囧(~ ~GroupAttack(~
+			REPLACE_TEXTUALLY ~,Attack囧(~ ~,Attack(~
+
+			REPLACE_TEXTUALLY ~,AttackOneRound(~ ~,AttackOneRound囧(~
+			REPLACE_TEXTUALLY ~AttackOneRound(~ ~SetGlobal("LOBfin#4","LOCALS",0)
+			AttackOneRound(~
+			REPLACE_TEXTUALLY ~,AttackOneRound囧(~ ~,AttackOneRound(~
+
+			REPLACE_TEXTUALLY ~,AttackReevaluate(~ ~,AttackReevaluate囧(~
+			REPLACE_TEXTUALLY ~AttackReevaluate(~ ~SetGlobal("LOBfin#5","LOCALS",0)
+			AttackReevaluate(~
+			REPLACE_TEXTUALLY ~,AttackReevaluate囧(~ ~,AttackReevaluate(~
+
+			REPLACE_TEXTUALLY ~,AttackNoSound(~ ~,AttackNoSound囧(~
+			REPLACE_TEXTUALLY ~AttackNoSound(~ ~SetGlobal("LOBfin#6","LOCALS",0)
+			AttackNoSound(~
+			REPLACE_TEXTUALLY ~,AttackNoSound囧(~ ~,AttackNoSound(~
+			//是CutScene，标记并放入排除列表，之后需要还原
+			REPLACE_TEXTUALLY ~CutSceneId(~ ~CutSceneId("LOBfin#7")
+			CutSceneId(~
+			//InParty(Myself)是队友，标记，需要读生物脚本放入排除列表，之后还需要还原
+			REPLACE_TEXTUALLY ~InParty(Myself)~ ~InParty(Myself)
+			!GlobalGT("LOBfin#8","LOCALS",0)~
+		END
+	END
+BUT_ONLY
+
+//找到被标记的InParty(Myself)队友，读取生物所有脚本并放入排除列表
+COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
+	SET credone = 0
+	READ_ASCII 0x248 scoverride
+	READ_ASCII 0x250 scclass
+	READ_ASCII 0x258 scrace
+	READ_ASCII 0x260 scgeneral
+	READ_ASCII 0x268 scdefault
+	PATCH_IF FILE_EXISTS_IN_GAME ~%scoverride%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	END
+	PATCH_IF FILE_EXISTS_IN_GAME ~%scclass%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scclass%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	END
+	PATCH_IF FILE_EXISTS_IN_GAME ~%scrace%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scrace%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	END
+	PATCH_IF FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scgeneral%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	END
+	PATCH_IF FILE_EXISTS_IN_GAME ~%0x268%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%0x268%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	END
+	PATCH_IF credone == 1 BEGIN
+		INNER_ACTION BEGIN
+			APPEND ~LOBf#excp.2da~ ~%SOURCE_RES%~
+		END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scoverride%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scoverride%~ END
+		END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scclass%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scclass%~ END
+		END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scrace%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scrace%~ END
+		END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scgeneral%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scgeneral%~ END
+		END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scdefault%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scdefault%~ END
+		END
+	END
+BUT_ONLY
+
+//将标记过的脚本放入待添加列表
+COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
+	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#7~) BEGIN	//CutScene放入排除列表
+		INNER_ACTION BEGIN
+			APPEND ~LOBf#excl.2da~ ~%SOURCE_RES%~
+		END
+	END
+	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#~) BEGIN	//添加列表包括了被标记的所有脚本，包括不应该写入的CutScene和InParty(Myself)队友
+		DEFINE_ASSOCIATIVE_ARRAY LOBfixArray BEGIN "%SOURCE_RES%" => 0 END
+	END
+BUT_ONLY
+
+//添加脚本并移除标记
+ACTION_PHP_EACH LOBfixArray AS bcsfile => foo BEGIN
+	//在待添加列表且不在排除列表（排除CutScene和InParty(Myself)队友），正式添加
+	ACTION_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%bcsfile%~) BEGIN
+		EXTEND_TOP ~%bcsfile%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~
+	END
+	//待添加列表全部移除标记，包括CutScene和InParty(Myself)队友
+	COPY_EXISTING ~%bcsfile%.bcs~ ~override~
+		DECOMPILE_AND_PATCH BEGIN
+			REPLACE_TEXTUALLY ~!GlobalGT("LOBfin#1","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#2","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#3","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#4","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#5","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#6","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~CutSceneId("LOBfin#7")~ ~~
+			REPLACE_TEXTUALLY ~!GlobalGT("LOBfin#8","LOCALS",0)~ ~~
+		END
+	BUT_ONLY
+END
+//有没有漏网之鱼？
+//遍历队友以外所有生物，遍历其5个脚本，没动过就要添加
+COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
+	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excp.2da~ ~%SOURCE_RES%~) BEGIN
+		//SPRINT crename ~%SOURCE_RES%~
+		SET credone = 0
+		READ_ASCII 0x248 scoverride
+		READ_ASCII 0x250 scclass
+		READ_ASCII 0x258 scrace
+		READ_ASCII 0x260 scgeneral
+		READ_ASCII 0x268 scdefault
+		//脚本名STRING_CONTAINS_REGEXP "[a-zA-Z0-9]"是1，表示脚本不包含正常字符，加上NOT才是正常字符。再NOT STRING_EQUAL_CASE ~none~表示脚本存在
+		PATCH_IF FILE_EXISTS_IN_GAME ~%scoverride%.bcs~ BEGIN
+			PATCH_IF FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+		END
+		PATCH_IF FILE_EXISTS_IN_GAME ~%scclass%.bcs~ BEGIN
+			PATCH_IF FILE_CONTAINS_EVALUATED (~%scclass%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+		END
+		PATCH_IF FILE_EXISTS_IN_GAME ~%scrace%.bcs~ BEGIN
+			PATCH_IF FILE_CONTAINS_EVALUATED (~%scrace%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+		END
+		PATCH_IF FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~ BEGIN
+			PATCH_IF FILE_CONTAINS_EVALUATED (~%scgeneral%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+		END
+		PATCH_IF FILE_EXISTS_IN_GAME ~%scdefault%.bcs~ BEGIN
+			PATCH_IF FILE_CONTAINS_EVALUATED (~%scdefault%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+		END
+		PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfixed~)) BEGIN
+			INNER_ACTION BEGIN EXTEND_TOP ~%scoverride%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+		END
+		PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%scclass%.bcs~ ~LOBfixed~)) BEGIN
+			INNER_ACTION BEGIN EXTEND_TOP ~%scclass%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+		END
+		PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%scrace%.bcs~ ~LOBfixed~))  BEGIN
+			INNER_ACTION BEGIN EXTEND_TOP ~%scrace%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+		END
+		PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%scgeneral%.bcs~ ~LOBfixed~))  BEGIN
+			INNER_ACTION BEGIN EXTEND_TOP ~%scgeneral%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+		END
+		PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%scdefault%.bcs~ ~LOBfixed~))  BEGIN
+			INNER_ACTION BEGIN EXTEND_TOP ~%scdefault%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+		END
+	END
+BUT_ONLY
+//遍历所有地图生物（排除队友），遍历其6个脚本，没动过就要添加
+COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
+	READ_LONG 0x0054 actoroffset
+	READ_SHORT 0x0058 actorcount
+	PATCH_IF actorcount > 0 BEGIN
+		FOR (actorindex = 0 ; actorindex < actorcount ; ++actorindex) BEGIN
+			SET credone = 0
+			READ_ASCII (0x0080 + actorindex * 0x110 + actoroffset) actorcre
+			READ_ASCII (0x0050 + actorindex * 0x110 + actoroffset) ascoverride
+			READ_ASCII (0x0058 + actorindex * 0x110 + actoroffset) ascgeneral
+			READ_ASCII (0x0060 + actorindex * 0x110 + actoroffset) ascclass
+			READ_ASCII (0x0068 + actorindex * 0x110 + actoroffset) ascrace
+			READ_ASCII (0x0070 + actorindex * 0x110 + actoroffset) ascdefault
+			READ_ASCII (0x0078 + actorindex * 0x110 + actoroffset) ascspecific
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%actorcre%.cre~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excp.2da~ ~%actorcre%~)) BEGIN
+				//脚本名STRING_CONTAINS_REGEXP "[a-zA-Z0-9]"是1，表示脚本不包含正常字符，加上NOT才是正常字符。再NOT STRING_EQUAL_CASE ~none~表示脚本存在
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascoverride%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascoverride%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascgeneral%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascgeneral%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascclass%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascclass%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascrace%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascrace%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascdefault%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascdefault%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF FILE_EXISTS_IN_GAME ~%ascspecific%.bcs~ BEGIN
+					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascspecific%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascoverride%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascoverride%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascgeneral%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascgeneral%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascclass%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascclass%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascrace%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascrace%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascdefault%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascdefault%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+				PATCH_IF (credone != 1) & (FILE_EXISTS_IN_GAME ~%ascspecific%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~%ascspecific%.bcs~ ~LOBfixed~)) BEGIN
+					INNER_ACTION BEGIN EXTEND_TOP ~%ascspecific%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~ END SET credone = 1
+				END
+			END
+		END
+	END
+BUT_ONLY
+
+//控制spl，根据职业使用LOBFIX#A-M.spl修正豁免
+COPY ~%MOD_FOLDER%/spl/LOBFIX#0.spl~ ~override~
+
+COPY ~%MOD_FOLDER%/spl/LOBFIX#N.spl~ ~override~
+
+//豁免修正spl
+COPY_EXISTING ~SAVEMONK.2DA~ ~override~
+	FOR (index = 0; index < 22; ++index) BEGIN
+		READ_2DA_ENTRY 0 index 40 crelevel
+		READ_2DA_ENTRY 1 (index + 1) 40 save1
+		READ_2DA_ENTRY 2 (index + 1) 40 save2
+		READ_2DA_ENTRY 3 (index + 1) 40 save3
+		READ_2DA_ENTRY 4 (index + 1) 40 save4
+		READ_2DA_ENTRY 5 (index + 1) 40 save5
+		SPRINT $savemonk1("%crelevel%") "%save1%"
+		SPRINT $savemonk2("%crelevel%") "%save2%"
+		SPRINT $savemonk3("%crelevel%") "%save3%"
+		SPRINT $savemonk4("%crelevel%") "%save4%"
+		SPRINT $savemonk5("%crelevel%") "%save5%"
+	END
+BUT_ONLY
+
+COPY_EXISTING ~SAVEPRS.2DA~ ~override~
+	FOR (index = 0; index < 22; ++index) BEGIN
+		READ_2DA_ENTRY 0 index 40 crelevel
+		READ_2DA_ENTRY 1 (index + 1) 40 save1
+		READ_2DA_ENTRY 2 (index + 1) 40 save2
+		READ_2DA_ENTRY 3 (index + 1) 40 save3
+		READ_2DA_ENTRY 4 (index + 1) 40 save4
+		READ_2DA_ENTRY 5 (index + 1) 40 save5
+		SPRINT $saveprs1("%crelevel%") "%save1%"
+		SPRINT $saveprs2("%crelevel%") "%save2%"
+		SPRINT $saveprs3("%crelevel%") "%save3%"
+		SPRINT $saveprs4("%crelevel%") "%save4%"
+		SPRINT $saveprs5("%crelevel%") "%save5%"
+	END
+BUT_ONLY
+
+COPY_EXISTING ~SAVEROG.2DA~ ~override~
+	FOR (index = 0; index < 22; ++index) BEGIN
+		READ_2DA_ENTRY 0 index 40 crelevel
+		READ_2DA_ENTRY 1 (index + 1) 40 save1
+		READ_2DA_ENTRY 2 (index + 1) 40 save2
+		READ_2DA_ENTRY 3 (index + 1) 40 save3
+		READ_2DA_ENTRY 4 (index + 1) 40 save4
+		READ_2DA_ENTRY 5 (index + 1) 40 save5
+		SPRINT $saverog1("%crelevel%") "%save1%"
+		SPRINT $saverog2("%crelevel%") "%save2%"
+		SPRINT $saverog3("%crelevel%") "%save3%"
+		SPRINT $saverog4("%crelevel%") "%save4%"
+		SPRINT $saverog5("%crelevel%") "%save5%"
+	END
+BUT_ONLY
+
+COPY_EXISTING ~SAVEWAR.2DA~ ~override~
+	FOR (index = 0; index < 22; ++index) BEGIN
+		READ_2DA_ENTRY 0 index 40 crelevel
+		READ_2DA_ENTRY 1 (index + 1) 40 save1
+		READ_2DA_ENTRY 2 (index + 1) 40 save2
+		READ_2DA_ENTRY 3 (index + 1) 40 save3
+		READ_2DA_ENTRY 4 (index + 1) 40 save4
+		READ_2DA_ENTRY 5 (index + 1) 40 save5
+		SPRINT $savewar1("%crelevel%") "%save1%"
+		SPRINT $savewar2("%crelevel%") "%save2%"
+		SPRINT $savewar3("%crelevel%") "%save3%"
+		SPRINT $savewar4("%crelevel%") "%save4%"
+		SPRINT $savewar5("%crelevel%") "%save5%"
+	END
+BUT_ONLY
+
+COPY_EXISTING ~SAVEWIZ.2DA~ ~override~
+	FOR (index = 0; index < 22; ++index) BEGIN
+		READ_2DA_ENTRY 0 index 40 crelevel
+		READ_2DA_ENTRY 1 (index + 1) 40 save1
+		READ_2DA_ENTRY 2 (index + 1) 40 save2
+		READ_2DA_ENTRY 3 (index + 1) 40 save3
+		READ_2DA_ENTRY 4 (index + 1) 40 save4
+		READ_2DA_ENTRY 5 (index + 1) 40 save5
+		SPRINT $savewiz1("%crelevel%") "%save1%"
+		SPRINT $savewiz2("%crelevel%") "%save2%"
+		SPRINT $savewiz3("%crelevel%") "%save3%"
+		SPRINT $savewiz4("%crelevel%") "%save4%"
+		SPRINT $savewiz5("%crelevel%") "%save5%"
+	END
+BUT_ONLY
+
+//A	10FIGHTER_MAGE_THIEF
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#A.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%")) ? $savewar1("%index%") : ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewar2("%index%") < ($savewiz2("%index%") < $saverog2("%index%") ? $savewiz2("%index%") : $saverog2("%index%")) ? $savewar2("%index%") : ($savewiz2("%index%") < $saverog2("%index%") ? $savewiz2("%index%") : $saverog2("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewar3("%index%") < ($savewiz3("%index%") < $saverog3("%index%") ? $savewiz3("%index%") : $saverog3("%index%")) ? $savewar3("%index%") : ($savewiz3("%index%") < $saverog3("%index%") ? $savewiz3("%index%") : $saverog3("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewar4("%index%") < ($savewiz4("%index%") < $saverog4("%index%") ? $savewiz4("%index%") : $saverog4("%index%")) ? $savewar4("%index%") : ($savewiz4("%index%") < $saverog4("%index%") ? $savewiz4("%index%") : $saverog4("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewar5("%index%") < ($savewiz5("%index%") < $saverog5("%index%") ? $savewiz5("%index%") : $saverog5("%index%")) ? $savewar5("%index%") : ($savewiz5("%index%") < $saverog5("%index%") ? $savewiz5("%index%") : $saverog5("%index%"))) END
+	END
+BUT_ONLY
+//B	17FIGHTER_MAGE_CLERIC
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#B.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%")) ? $savewar1("%index%") : ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewar2("%index%") < ($savewiz2("%index%") < $saveprs2("%index%") ? $savewiz2("%index%") : $saveprs2("%index%")) ? $savewar2("%index%") : ($savewiz2("%index%") < $saveprs2("%index%") ? $savewiz2("%index%") : $saveprs2("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewar3("%index%") < ($savewiz3("%index%") < $saveprs3("%index%") ? $savewiz3("%index%") : $saveprs3("%index%")) ? $savewar3("%index%") : ($savewiz3("%index%") < $saveprs3("%index%") ? $savewiz3("%index%") : $saveprs3("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewar4("%index%") < ($savewiz4("%index%") < $saveprs4("%index%") ? $savewiz4("%index%") : $saveprs4("%index%")) ? $savewar4("%index%") : ($savewiz4("%index%") < $saveprs4("%index%") ? $savewiz4("%index%") : $saveprs4("%index%"))) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewar5("%index%") < ($savewiz5("%index%") < $saveprs5("%index%") ? $savewiz5("%index%") : $saveprs5("%index%")) ? $savewar5("%index%") : ($savewiz5("%index%") < $saveprs5("%index%") ? $savewiz5("%index%") : $saveprs5("%index%"))) END
+	END
+BUT_ONLY
+//C	7FIGHTER_MAGE
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#C.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $savewiz1("%index%") ? $savewar1("%index%") : $savewiz1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewar2("%index%") < $savewiz2("%index%") ? $savewar2("%index%") : $savewiz2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewar3("%index%") < $savewiz3("%index%") ? $savewar3("%index%") : $savewiz3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewar4("%index%") < $savewiz4("%index%") ? $savewar4("%index%") : $savewiz4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewar5("%index%") < $savewiz5("%index%") ? $savewar5("%index%") : $savewiz5("%index%")) END
+	END
+BUT_ONLY
+//D	8FIGHTER_CLERIC			16FIGHTER_DRUID		18CLERIC_RANGER
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#D.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $saveprs1("%index%") ? $savewar1("%index%") : $saveprs1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewar2("%index%") < $saveprs2("%index%") ? $savewar2("%index%") : $saveprs2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewar3("%index%") < $saveprs3("%index%") ? $savewar3("%index%") : $saveprs3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewar4("%index%") < $saveprs4("%index%") ? $savewar4("%index%") : $saveprs4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewar5("%index%") < $saveprs5("%index%") ? $savewar5("%index%") : $saveprs5("%index%")) END
+	END
+BUT_ONLY
+//E	9FIGHTER_THIEF
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#E.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $saverog1("%index%") ? $savewar1("%index%") : $saverog1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewar2("%index%") < $saverog2("%index%") ? $savewar2("%index%") : $saverog2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewar3("%index%") < $saverog3("%index%") ? $savewar3("%index%") : $saverog3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewar4("%index%") < $saverog4("%index%") ? $savewar4("%index%") : $saverog4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewar5("%index%") < $saverog5("%index%") ? $savewar5("%index%") : $saverog5("%index%")) END
+	END
+BUT_ONLY
+//F	13MAGE_THIEF
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#F.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewiz2("%index%") < $saverog2("%index%") ? $savewiz2("%index%") : $saverog2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewiz3("%index%") < $saverog3("%index%") ? $savewiz3("%index%") : $saverog3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewiz4("%index%") < $saverog4("%index%") ? $savewiz4("%index%") : $saverog4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewiz5("%index%") < $saverog5("%index%") ? $savewiz5("%index%") : $saverog5("%index%")) END
+	END
+BUT_ONLY
+//G	14CLERIC_MAGE
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#G.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($savewiz2("%index%") < $saveprs2("%index%") ? $savewiz2("%index%") : $saveprs2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($savewiz3("%index%") < $saveprs3("%index%") ? $savewiz3("%index%") : $saveprs3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($savewiz4("%index%") < $saveprs4("%index%") ? $savewiz4("%index%") : $saveprs4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($savewiz5("%index%") < $saveprs5("%index%") ? $savewiz5("%index%") : $saveprs5("%index%")) END
+	END
+BUT_ONLY
+//H	15CLERIC_THIEF
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#H.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($saveprs1("%index%") < $saverog1("%index%") ? $saveprs1("%index%") : $saverog1("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = ($saveprs2("%index%") < $saverog2("%index%") ? $saveprs2("%index%") : $saverog2("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = ($saveprs3("%index%") < $saverog3("%index%") ? $saveprs3("%index%") : $saverog3("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = ($saveprs4("%index%") < $saverog4("%index%") ? $saveprs4("%index%") : $saverog4("%index%")) END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = ($saveprs5("%index%") < $saverog5("%index%") ? $saveprs5("%index%") : $saverog5("%index%")) END
+	END
+BUT_ONLY
+//I	202MAGE_ALL
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#I.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savewiz1("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = $savewiz2("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = $savewiz3("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = $savewiz4("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = $savewiz5("%index%") END
+	END
+BUT_ONLY
+//J	21SHAMAN	204CLERIC_ALL		208DRUID_ALL
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#J.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $saveprs1("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = $saveprs2("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = $saveprs3("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = $saveprs4("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = $saveprs5("%index%") END
+	END
+BUT_ONLY
+//K	205THIEF_ALL		206BARD_ALL
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#K.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $saverog1("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = $saverog2("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = $saverog3("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = $saverog4("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = $saverog5("%index%") END
+	END
+BUT_ONLY
+//L	20MONK
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#L.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savemonk1("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = $savemonk2("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = $savemonk3("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = $savemonk4("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = $savemonk5("%index%") END
+	END
+BUT_ONLY
+//M	203FIGHTER_ALL		207PALADIN_ALL		209RANGER_ALL
+COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#M.spl~
+	FOR (index = 1; index < 22; ++index) BEGIN
+		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savewar1("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 34 parameter1 = $savewar2("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 35 parameter1 = $savewar3("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 36 parameter1 = $savewar4("%index%") END
+		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 37 parameter1 = $savewar5("%index%") END
+	END
+BUT_ONLY
+
+MOVE ~override/LOBf#excl.2da~ ~%MOD_FOLDER%/2da/LOBd#excl.2da~
+MOVE ~override/LOBf#excp.2da~ ~%MOD_FOLDER%/2da/LOBd#excp.2da~
+
+BEGIN @2
+REQUIRE_PREDICATE FILE_EXISTS_IN_GAME ~LOBFIX#0.spl~ @3
+COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
+	R_B_B ~%MOD_FOLDER%/baf/fix.baf~ ~%MOD_FOLDER%/baf/fix1.baf~ ON_MISMATCH END
+BUT_ONLY
+
+//spl0按职业分配splA-M
+//splA-M修正为原等级豁免，顺便调用splN为-5豁免永久效果且不得累加
+//spl1随等级修正调整值，不得累加
+//spl1复制成splO给魔宠用，永久效果，不得累加
+
+//随等级调整数值spl
+COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override~
+
+//永久效果给魔宠
+COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override/LOBFIX#O.spl~
+LPF ALTER_SPELL_EFFECT INT_VAR timing = 9 END
+LPF ALTER_SPELL_EFFECT INT_VAR match_opcode = 318 STR_VAR resource = ~LOBFIX#O~ END
+
+ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
+	COPY_EXISTING ~CAMPAIGN.2da~ ~override~
+		COUNT_2DA_ROWS 10 camprowmax	//至少10列column，row行数读入camprowmax
+		PATCH_IF camprowmax > 1 BEGIN
+			FOR (camprows = 1 ; camprows < camprowmax ; ++camprows) BEGIN
+				READ_2DA_ENTRY camprows 1 10 campscript	//WORLDSCRIPT名称				
+				PATCH_IF FILE_EXISTS_IN_GAME ~FAMILIAR.2DA~ BEGIN
+					INNER_ACTION BEGIN
+						COPY_EXISTING ~FAMILIAR.2DA~ ~override~
+							COUNT_2DA_ROWS 1 maxfams
+							FOR (index = 0 ; index < maxfams ; ++index) BEGIN
+								READ_2DA_ENTRY index 0 1 famtype									
+								INNER_ACTION BEGIN
+									EXTEND_TOP ~%campscript%.bcs~ ~%MOD_FOLDER%/baf/fam.baf~ EVALUATE_BUFFER
+								END
+							END
+						BUT_ONLY
+					END
+				END ELSE BEGIN
+					PATCH_FOR_EACH famtype IN ~FAMCAT~ ~FAMDUST~ ~FAMFAIR~ ~FAMFER~ ~FAMIMP~ ~FAMPSD~ ~FAMQUAS~ ~FAMRAB~ BEGIN
+						PATCH_IF FILE_EXISTS_IN_GAME ~%famtype%.cre~ BEGIN
+							INNER_ACTION BEGIN
+								EXTEND_TOP ~%campscript%.bcs~ ~%MOD_FOLDER%/baf/fam.baf~ EVALUATE_BUFFER
+							END
+						END
+					END
+				END
+			END
+		END
+	BUT_ONLY
+END
+ACTION_IF (NOT FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~) OR (camprowmax < 2) BEGIN
+	ACTION_FOR_EACH campscript IN ~baldur~ ~baldur25~ BEGIN
+		ACTION_IF FILE_EXISTS_IN_GAME ~FAMILIAR.2DA~ BEGIN
+			COPY_EXISTING ~FAMILIAR.2DA~ ~override~
+				COUNT_2DA_ROWS 1 maxfams
+				FOR (index = 0 ; index < maxfams ; ++index) BEGIN
+					READ_2DA_ENTRY index 0 1 famtype									
+					INNER_ACTION BEGIN
+						EXTEND_TOP ~%campscript%.bcs~ ~%MOD_FOLDER%/baf/fam.baf~ EVALUATE_BUFFER
+					END
+				END
+			BUT_ONLY
+		END ELSE BEGIN
+			ACTION_FOR_EACH famtype IN ~FAMCAT~ ~FAMDUST~ ~FAMFAIR~ ~FAMFER~ ~FAMIMP~ ~FAMPSD~ ~FAMQUAS~ ~FAMRAB~ BEGIN
+				ACTION_IF FILE_EXISTS_IN_GAME ~%famtype%.cre~ BEGIN
+					EXTEND_TOP ~%campscript%.bcs~ ~%MOD_FOLDER%/baf/fam.baf~ EVALUATE_BUFFER
+				END
+			END
+		END		
+	END
+END
+

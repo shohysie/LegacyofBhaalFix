@@ -1,0 +1,11 @@
+IF
+	NightmareModeOn()
+	Global("%famtype%","GLOBAL",1)
+	!Global("%famtype%LOBfixed","GLOBAL",1)
+THEN
+	RESPONSE #100
+		SetGlobal("%famtype%","GLOBAL",0)
+		SetGlobal("%famtype%LOBfixed","GLOBAL",1)
+		ActionOverride("%famtype%",ReallyForceSpellRes("LOBfix#O",Myself))
+		MoveGlobalObject("%famtype%",Player1)
+END
