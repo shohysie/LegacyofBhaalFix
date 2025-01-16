@@ -28,9 +28,11 @@ ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
 		COUNT_2DA_ROWS 10 camprowmax	//至少10列column，row行数读入camprowmax
 		PATCH_IF camprowmax > 1 BEGIN
 			FOR (camprows = 1 ; camprows < camprowmax ; ++camprows) BEGIN
-				READ_2DA_ENTRY camprows 1 10 campscript	//WORLDSCRIPT名称				
-				INNER_ACTION BEGIN
-					APPEND ~LOBf#excl.2da~ ~%campscript%~
+				READ_2DA_ENTRY camprows 1 10 campscript	//WORLDSCRIPT名称
+				PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%campscript%~) BEGIN
+					INNER_ACTION BEGIN
+						APPEND ~LOBf#excl.2da~ ~%campscript%~
+					END
 				END
 			END
 		END
@@ -41,14 +43,18 @@ END
 COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
 	READ_ASCII 0x94 areabcs
 	PATCH_IF (FILE_EXISTS_IN_GAME ~%areabcs%.bcs~) BEGIN
-		INNER_ACTION BEGIN
-			APPEND ~LOBf#excl.2da~ ~%areabcs%~
+		PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%areabcs%~) BEGIN
+			INNER_ACTION BEGIN
+				APPEND ~LOBf#excl.2da~ ~%areabcs%~
+			END
 		END
 	END
 BUT_ONLY
 
-//读取生物对话，如果对话中有JoinParty()，则读取该生物所有脚本并放入排除列表。SHOUT脚本不算
+//生物有不随难度变化标记，或者读取生物对话有JoinParty()，则读取该生物所有脚本并放入排除列表。SHOUT脚本不算
+//同时给生物添加免疫
 COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
+	READ_BYTE 0x12 creflag3
 	READ_ASCII 0x2cc credialog
 	READ_ASCII 0x248 scoverride
 	READ_ASCII 0x250 scclass
@@ -56,7 +62,8 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	READ_ASCII 0x260 scgeneral
 	READ_ASCII 0x268 scdefault
 	PATCH_IF FILE_EXISTS_IN_GAME ~%credialog%.dlg~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%credialog%.dlg~ ~JoinParty()~) BEGIN
+		PATCH_IF ((creflag3 & 0b01000000) = 0b01000000) OR (FILE_CONTAINS_EVALUATED (~%credialog%.dlg~ ~JoinParty()~)) BEGIN
+			LPF ADD_CRE_EFFECT INT_VAR opcode = 206 timing = 9 STR_VAR resource = ~LOBfix#1~ END
 			INNER_ACTION BEGIN
 				APPEND ~LOBf#excp.2da~ ~%SOURCE_RES%~
 			END
@@ -115,12 +122,12 @@ COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
 			REPLACE_TEXTUALLY ~AttackNoSound(~ ~SetGlobal("LOBfin#6","LOCALS",0)
 			AttackNoSound(~
 			REPLACE_TEXTUALLY ~,AttackNoSound囧(~ ~,AttackNoSound(~
-			//是CutScene，标记并放入排除列表，之后需要还原
-			REPLACE_TEXTUALLY ~CutSceneId(~ ~CutSceneId("LOBfin#7")
+			//是CutScene，标记待放入排除列表，之后需要还原
+			REPLACE_TEXTUALLY ~CutSceneId(~ ~CutSceneId("LOBfie#7")
 			CutSceneId(~
 			//InParty(Myself)是队友，标记，需要读生物脚本放入排除列表，之后还需要还原
 			REPLACE_TEXTUALLY ~InParty(Myself)~ ~InParty(Myself)
-			!GlobalGT("LOBfin#8","LOCALS",0)~
+			!GlobalGT("LOBfie#8","LOCALS",0)~
 		END
 	END
 BUT_ONLY
@@ -133,20 +140,21 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	READ_ASCII 0x258 scrace
 	READ_ASCII 0x260 scgeneral
 	READ_ASCII 0x268 scdefault
+	//有LOBfie#8标记，是队友
 	PATCH_IF FILE_EXISTS_IN_GAME ~%scoverride%.bcs~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
 	PATCH_IF FILE_EXISTS_IN_GAME ~%scclass%.bcs~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%scclass%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scclass%.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
 	PATCH_IF FILE_EXISTS_IN_GAME ~%scrace%.bcs~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%scrace%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scrace%.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
 	PATCH_IF FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%scgeneral%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scgeneral%.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
-	PATCH_IF FILE_EXISTS_IN_GAME ~%0x268%.bcs~ BEGIN
-		PATCH_IF FILE_CONTAINS_EVALUATED (~%0x268%.bcs~ ~LOBfin#8~) BEGIN SET credone = 1 END
+	PATCH_IF FILE_EXISTS_IN_GAME ~%scdefault%.bcs~ BEGIN
+		PATCH_IF FILE_CONTAINS_EVALUATED (~%scdefault.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
 	PATCH_IF credone == 1 BEGIN
 		INNER_ACTION BEGIN
@@ -170,26 +178,30 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	END
 BUT_ONLY
 
-//将标记过的脚本放入待添加列表
+//将标记过的脚本放入待添加列表，排除CutScene和队友入队后AI
 COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
-	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#7~) BEGIN	//CutScene放入排除列表
+	//有标记LOBfie#7，是CutScene，先放入排除列表。如果在PARTYAI.2DA（队友入队后AI）里也放入排除列表
+	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfie#7~) OR FILE_CONTAINS_EVALUATED (~PARTYAI.2DA~ ~%SOURCE_RES%~) BEGIN
 		INNER_ACTION BEGIN
 			APPEND ~LOBf#excl.2da~ ~%SOURCE_RES%~
 		END
 	END
-	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#~) BEGIN	//添加列表包括了被标记的所有脚本，包括不应该写入的CutScene和InParty(Myself)队友
+	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#~) BEGIN	//找到被标记的生物战斗脚本，列入LOBfixArray数组
 		DEFINE_ASSOCIATIVE_ARRAY LOBfixArray BEGIN "%SOURCE_RES%" => 0 END
 	END
 BUT_ONLY
 
-//添加脚本并移除标记
+//遍历生物战斗脚本，修改并移除标记
 ACTION_PHP_EACH LOBfixArray AS bcsfile => foo BEGIN
-	//在待添加列表且不在排除列表（排除CutScene和InParty(Myself)队友），正式添加
+	//在待添加列表且不在排除列表（排除CutScene和队友脚本），正式添加
 	ACTION_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%bcsfile%~) BEGIN
 		EXTEND_TOP ~%bcsfile%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~
 	END
-	//待添加列表全部移除标记，包括CutScene和InParty(Myself)队友
-	COPY_EXISTING ~%bcsfile%.bcs~ ~override~
+END
+
+//待添加列表全部移除标记，包括CutScene和InParty(Myself)队友
+COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
+	PATCH_IF (FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfie#~)) OR (FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfin#~)) BEGIN
 		DECOMPILE_AND_PATCH BEGIN
 			REPLACE_TEXTUALLY ~!GlobalGT("LOBfin#1","LOCALS",0)~ ~~
 			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#2","LOCALS",0)~ ~~
@@ -197,11 +209,12 @@ ACTION_PHP_EACH LOBfixArray AS bcsfile => foo BEGIN
 			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#4","LOCALS",0)~ ~~
 			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#5","LOCALS",0)~ ~~
 			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#6","LOCALS",0)~ ~~
-			REPLACE_TEXTUALLY ~CutSceneId("LOBfin#7")~ ~~
-			REPLACE_TEXTUALLY ~!GlobalGT("LOBfin#8","LOCALS",0)~ ~~
+			REPLACE_TEXTUALLY ~CutSceneId("LOBfie#7")~ ~~
+			REPLACE_TEXTUALLY ~!GlobalGT("LOBfie#8","LOCALS",0)~ ~~
 		END
-	BUT_ONLY
-END
+	END
+BUT_ONLY
+
 //有没有漏网之鱼？
 //遍历队友以外所有生物，遍历其5个脚本，没动过就要添加
 COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~

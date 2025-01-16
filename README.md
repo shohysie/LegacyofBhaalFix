@@ -11,3 +11,10 @@ For example, HP of a level 13 creature (originally level 1 in no LOB games) gene
 
 Familiars as well as summoned creatures on both sides will also be adjusted in the same way.
 Those amendment excludes all members who can join the party. There may be a small number of misjudgments but not serious. 
+
+
+History
+
+v0.3 Excluded the modification for teammates.
+
+v0.2 A new component that reduces the enhancement received by low-level creatures in LOB mod.

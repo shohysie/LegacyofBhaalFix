@@ -14,6 +14,7 @@ END
 IF
 	NightmareModeOn()
 	GlobalTimerExpired("LOBfixedInterval","LOCALS")
+	!Allegiance(Myself,PC)
 	OR(4)
 		!CombatCounter(0)
 		Allegiance(Myself,ENEMY)
