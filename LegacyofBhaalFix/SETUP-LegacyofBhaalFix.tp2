@@ -566,7 +566,8 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override~
 //永久效果给魔宠
 COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override/LOBFIX#O.spl~
 LPF ALTER_SPELL_EFFECT INT_VAR timing = 9 END
-LPF ALTER_SPELL_EFFECT INT_VAR match_opcode = 318 STR_VAR resource = ~LOBFIX#O~ END
+LPF ADD_SPELL_EFFECT INT_VAR opcode = 321 target = 2 timing = 1 insert_point = 0 STR_VAR resource = ~LOBfix#1~ END
+LPF ADD_SPELL_EFFECT INT_VAR opcode = 206 target = 2 timing = 9 STR_VAR resource = ~LOBfix#O~ END
 
 ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
 	COPY_EXISTING ~CAMPAIGN.2da~ ~override~

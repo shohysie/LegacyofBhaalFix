@@ -1,12 +1,21 @@
 IF
 	NightmareModeOn()
 	!Global("LOBfixed","LOCALS",1)
+THEN
+	RESPONSE #100
+		SetGlobal("LOBfixed","LOCALS",1)
+		ReallyForceSpellRes("LOBfix#0",Myself)
+		Continue()
+END
+
+IF
+	NightmareModeOn()
+	!Global("LOBfixed","LOCALS",1)
 	!Allegiance(Myself,PC)
 THEN
 	RESPONSE #100
 		SetGlobal("LOBfixed","LOCALS",1)
 		SetGlobalTimer("LOBfixedInterval","LOCALS",2400)
-		ReallyForceSpellRes("LOBfix#0",Myself)
 		ReallyForceSpellRes("LOBfix#1",Myself)
 		Continue()
 END

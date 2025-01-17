@@ -14,6 +14,8 @@ Those amendment excludes all members who can join the party. There may be a smal
 
 History
 
+v0.4 Fixed the BUG that Familiars are not affected.
+
 v0.3 Excluded the modification for teammates.
 
 v0.2 A new component that reduces the enhancement received by low-level creatures in LOB mod.
