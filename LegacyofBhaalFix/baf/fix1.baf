@@ -1,6 +1,6 @@
 IF
 	NightmareModeOn()
-	!Global("LOBfixed","LOCALS",1)
+	!GlobalGT("LOBfixed","LOCALS",0)
 THEN
 	RESPONSE #100
 		SetGlobal("LOBfixed","LOCALS",1)
@@ -10,7 +10,7 @@ END
 
 IF
 	NightmareModeOn()
-	!Global("LOBfixed","LOCALS",1)
+	!GlobalGT("LOBfixed","LOCALS",0)
 	!Allegiance(Myself,PC)
 THEN
 	RESPONSE #100

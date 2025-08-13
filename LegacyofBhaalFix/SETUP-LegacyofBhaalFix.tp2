@@ -1,7 +1,7 @@
 BACKUP ~LegacyofBhaalFix/backup~
 AUTHOR ~shohy@126.com~
 
-VERSION ~v0.1~
+VERSION ~v0.5~
 AUTO_EVAL_STRINGS
 
 README ~%MOD_FOLDER%/README.%LANGUAGE%.txt~
@@ -12,12 +12,19 @@ LANGUAGE  ~Simplified Chinese~	~schinese~	~LegacyofBhaalFix/tra/schinese/setup.t
 
 BEGIN @1
 
-
-/*
-ACTION_IF FILE_CONTAINS_EVALUATED (~AERIE.DLG~ ~JoinParty()~) BEGIN
-	PRINT ~AA~
-END
-*/
+//队友入队后解除误加改动
+COPY_EXISTING ~PARTYAI.2DA~ ~override~
+	COUNT_2DA_ROWS 2 pcmax
+	FOR (pcrows = 1 ; pcrows < pcmax ; ++pcrows) BEGIN
+		READ_2DA_ENTRY pcrows 1 2 pcscript
+		PATCH_IF FILE_EXISTS_IN_GAME ~%pcscript%.bcs~ BEGIN
+			INNER_ACTION BEGIN
+				EXTEND_TOP ~%pcscript%.bcs~ ~%MOD_FOLDER%/baf/fixparty.baf~
+			END
+		END
+	END
+BUT_ONLY
+EXTEND_TOP ~DPLAYER2.bcs~ ~%MOD_FOLDER%/baf/fixparty.baf~
 
 COPY ~%MOD_FOLDER%/2da/LOBf#excl.2da~ ~override/LOBf#excl.2da~
 COPY ~%MOD_FOLDER%/2da/LOBf#excp.2da~ ~override/LOBf#excp.2da~
@@ -317,9 +324,11 @@ COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
 BUT_ONLY
 
 //控制spl，根据职业使用LOBFIX#A-M.spl修正豁免
-COPY ~%MOD_FOLDER%/spl/LOBFIX#0.spl~ ~override~
+COPY ~%MOD_FOLDER%/spl/LOBFIX#0.spl~ ~override~	//判断职业，把豁免修成正常值
 
-COPY ~%MOD_FOLDER%/spl/LOBFIX#N.spl~ ~override~
+COPY ~%MOD_FOLDER%/spl/LOBFIX#N.spl~ ~override~	//额外5点修正
+
+COPY ~%MOD_FOLDER%/spl/LOBFIX#R.spl~ ~override~	//移除效果
 
 //豁免修正spl
 COPY_EXISTING ~SAVEMONK.2DA~ ~override~
@@ -548,6 +557,12 @@ BUT_ONLY
 
 MOVE ~override/LOBf#excl.2da~ ~%MOD_FOLDER%/2da/LOBd#excl.2da~
 MOVE ~override/LOBf#excp.2da~ ~%MOD_FOLDER%/2da/LOBd#excp.2da~
+
+COPY_EXISTING ~DPLAYER3.bcs~ ~override~
+	R_B_B ~%MOD_FOLDER%/baf/fix.baf~ ~%MOD_FOLDER%/baf/fixparty.baf~ ON_MISMATCH END
+BUT_ONLY
+
+
 
 BEGIN @2
 REQUIRE_PREDICATE FILE_EXISTS_IN_GAME ~LOBFIX#0.spl~ @3

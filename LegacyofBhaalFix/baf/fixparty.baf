@@ -1,0 +1,10 @@
+IF
+	NightmareModeOn()
+	Global("LOBfixed","LOCALS",1)
+	Allegiance(Myself,PC)
+THEN
+	RESPONSE #100
+		SetGlobal("LOBfixed","LOCALS",2)
+		ReallyForceSpellRes("LOBFIX#R",Myself)
+		Continue()
+END

@@ -1,6 +1,6 @@
 IF
 	NightmareModeOn()
-	!Global("LOBfixed","LOCALS",1)
+	!GlobalGT("LOBfixed","LOCALS",0)
 THEN
 	RESPONSE #100
 		SetGlobal("LOBfixed","LOCALS",1)
