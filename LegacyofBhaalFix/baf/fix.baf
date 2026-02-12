@@ -1,9 +1,9 @@
 IF
 	NightmareModeOn()
-	!GlobalGT("LOBfixed","LOCALS",0)
+	!GlobalGT("SY#LOBfixed","LOCALS",0)
 THEN
 	RESPONSE #100
-		SetGlobal("LOBfixed","LOCALS",1)
-		ReallyForceSpellRes("LOBfix#0",Myself)
+		SetGlobal("SY#LOBfixed","LOCALS",1)
+		ReallyForceSpellRes("SY#LOBF0",Myself)
 		Continue()
 END

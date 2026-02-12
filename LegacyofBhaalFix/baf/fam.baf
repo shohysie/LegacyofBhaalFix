@@ -1,10 +1,10 @@
 IF
 	NightmareModeOn()
-	!Global("LOBfixed%famtype%","GLOBAL",1)
+	!Global("SY#LOBfixed%famtype%","GLOBAL",1)
 	Exists("%famtype%")
 THEN
 	RESPONSE #100
-		SetGlobal("LOBfixed%famtype%","GLOBAL",1)
-		ActionOverride("%famtype%",ReallyForceSpellRes("LOBfix#O",Myself))
+		SetGlobal("SY#LOBfixed%famtype%","GLOBAL",1)
+		ActionOverride("%famtype%",ReallyForceSpellRes("SY#LOBFO",Myself))
 		Continue()
 END

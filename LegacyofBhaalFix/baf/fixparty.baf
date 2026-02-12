@@ -1,10 +1,10 @@
 IF
 	NightmareModeOn()
-	Global("LOBfixed","LOCALS",1)
+	Global("SY#LOBfixed","LOCALS",1)
 	Allegiance(Myself,PC)
 THEN
 	RESPONSE #100
-		SetGlobal("LOBfixed","LOCALS",2)
-		ReallyForceSpellRes("LOBFIX#R",Myself)
+		SetGlobal("SY#LOBfixed","LOCALS",2)
+		ReallyForceSpellRes("SY#LOBFR",Myself)
 		Continue()
 END

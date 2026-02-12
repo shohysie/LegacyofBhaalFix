@@ -1,7 +1,7 @@
 BACKUP ~LegacyofBhaalFix/backup~
 AUTHOR ~shohy@126.com~
 
-VERSION ~v0.5~
+VERSION ~v0.6~
 AUTO_EVAL_STRINGS
 
 README ~%MOD_FOLDER%/README.%LANGUAGE%.txt~
@@ -26,8 +26,8 @@ COPY_EXISTING ~PARTYAI.2DA~ ~override~
 BUT_ONLY
 EXTEND_TOP ~DPLAYER2.bcs~ ~%MOD_FOLDER%/baf/fixparty.baf~
 
-COPY ~%MOD_FOLDER%/2da/LOBf#excl.2da~ ~override/LOBf#excl.2da~
-COPY ~%MOD_FOLDER%/2da/LOBf#excp.2da~ ~override/LOBf#excp.2da~
+COPY ~%MOD_FOLDER%/2da/SY#LOBfl.2da~ ~override/SY#LOBfl.2da~	//排除列表，含不需要修改的bcs
+COPY ~%MOD_FOLDER%/2da/SY#LOBfp.2da~ ~override/SY#LOBfp.2da~	//加入的队友cre列表
 
 //战役脚本放入排除列表
 ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
@@ -36,9 +36,9 @@ ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
 		PATCH_IF camprowmax > 1 BEGIN
 			FOR (camprows = 1 ; camprows < camprowmax ; ++camprows) BEGIN
 				READ_2DA_ENTRY camprows 1 10 campscript	//WORLDSCRIPT名称
-				PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%campscript%~) BEGIN
+				PATCH_IF NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%campscript%~) BEGIN
 					INNER_ACTION BEGIN
-						APPEND ~LOBf#excl.2da~ ~%campscript%~
+						APPEND ~SY#LOBfl.2da~ ~%campscript%~ UNLESS ~^%campscript%$~
 					END
 				END
 			END
@@ -50,16 +50,15 @@ END
 COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
 	READ_ASCII 0x94 areabcs
 	PATCH_IF (FILE_EXISTS_IN_GAME ~%areabcs%.bcs~) BEGIN
-		PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%areabcs%~) BEGIN
+		PATCH_IF NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%areabcs%~) BEGIN
 			INNER_ACTION BEGIN
-				APPEND ~LOBf#excl.2da~ ~%areabcs%~
+				APPEND ~SY#LOBfl.2da~ ~%areabcs%~ UNLESS ~^%areabcs%$~
 			END
 		END
 	END
 BUT_ONLY
 
-//生物有不随难度变化标记，或者读取生物对话有JoinParty()，则读取该生物所有脚本并放入排除列表。SHOUT脚本不算
-//同时给生物添加免疫
+//生物有不随难度变化标记，或者读取生物对话有JoinParty()，则生物放入队友列表，并读取该生物所有脚本放入排除列表
 COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	READ_BYTE 0x12 creflag3
 	READ_ASCII 0x2cc credialog
@@ -70,24 +69,23 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	READ_ASCII 0x268 scdefault
 	PATCH_IF FILE_EXISTS_IN_GAME ~%credialog%.dlg~ BEGIN
 		PATCH_IF ((creflag3 & 0b01000000) = 0b01000000) OR (FILE_CONTAINS_EVALUATED (~%credialog%.dlg~ ~JoinParty()~)) BEGIN
-			LPF ADD_CRE_EFFECT INT_VAR opcode = 206 timing = 9 STR_VAR resource = ~LOBfix#1~ END
 			INNER_ACTION BEGIN
-				APPEND ~LOBf#excp.2da~ ~%SOURCE_RES%~
+				APPEND ~SY#LOBfp.2da~ ~%SOURCE_RES%~ UNLESS ~^%SOURCE_RES%$~
 			END
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scoverride%~)) BEGIN
-				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scoverride%~ END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scoverride%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scoverride%~ END
 			END
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scclass%~)) BEGIN
-				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scclass%~ END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scclass%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scclass%~ END
 			END
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scrace%~)) BEGIN
-				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scrace%~ END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scrace%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scrace%~ END
 			END
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scgeneral%~)) BEGIN
-				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scgeneral%~ END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scgeneral%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scgeneral%~ END
 			END
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scdefault%~)) BEGIN
-				INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scdefault%~ END
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scdefault%~)) BEGIN
+				INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scdefault%~ END
 			END
 		END
 	END
@@ -95,7 +93,7 @@ BUT_ONLY
 
 //标记战斗相关脚本
 COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
-	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%SOURCE_RES%~) BEGIN
+	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%SOURCE_RES%~) BEGIN
 		DECOMPILE_AND_PATCH BEGIN
 			//可能是生物战斗脚本，标记
 			REPLACE_TEXTUALLY ~!Allegiance(Myself,ENEMY)~ ~!Allegiance囧(Myself,ENEMY)~
@@ -139,7 +137,7 @@ COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
 	END
 BUT_ONLY
 
-//找到被标记的InParty(Myself)队友，读取生物所有脚本并放入排除列表
+//找到被标记的InParty(Myself)队友，生物放入队友列表，并读取生物所有脚本放入排除列表
 COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	SET credone = 0
 	READ_ASCII 0x248 scoverride
@@ -147,7 +145,7 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	READ_ASCII 0x258 scrace
 	READ_ASCII 0x260 scgeneral
 	READ_ASCII 0x268 scdefault
-	//有LOBfie#8标记，是队友
+	//有LOBfie#8标记的是队友
 	PATCH_IF FILE_EXISTS_IN_GAME ~%scoverride%.bcs~ BEGIN
 		PATCH_IF FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfie#8~) BEGIN SET credone = 1 END
 	END
@@ -165,24 +163,36 @@ COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
 	END
 	PATCH_IF credone == 1 BEGIN
 		INNER_ACTION BEGIN
-			APPEND ~LOBf#excp.2da~ ~%SOURCE_RES%~
+			APPEND ~SY#LOBfp.2da~ ~%SOURCE_RES%~ UNLESS ~^%SOURCE_RES%$~
 		END
-		PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scoverride%~)) BEGIN
-			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scoverride%~ END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scoverride%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scoverride%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scoverride%~ END
 		END
-		PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scclass%~)) BEGIN
-			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scclass%~ END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scclass%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scclass%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scclass%~ END
 		END
-		PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scrace%~)) BEGIN
-			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scrace%~ END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scrace%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scrace%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scrace%~ END
 		END
-		PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scgeneral%~)) BEGIN
-			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scgeneral%~ END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scgeneral%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scgeneral%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scgeneral%~ END
 		END
-		PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%scdefault%~)) BEGIN
-			INNER_ACTION BEGIN APPEND ~LOBf#excl.2da~ ~%scdefault%~ END
+		PATCH_IF (FILE_EXISTS_IN_GAME ~%scdefault%.bcs~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%scdefault%~)) BEGIN
+			INNER_ACTION BEGIN APPEND ~SY#LOBfl.2da~ ~%scdefault%~ END
 		END
 	END
+BUT_ONLY
+
+//给队友cre统一添加免疫	
+COPY_EXISTING ~SY#LOBfp.2da~ ~override~
+	COUNT_2DA_ROWS 1 teamatemax
+		FOR (teamates = 0 ; teamates < teamatemax ; ++teamates) BEGIN
+			READ_2DA_ENTRY teamates 0 1 teamatecre	//队友cre文件
+			INNER_ACTION BEGIN
+				COPY_EXISTING ~%teamatecre%.cre~ ~override~
+					LPF ADD_CRE_EFFECT INT_VAR opcode = 206 timing = 9 STR_VAR resource = ~SY#LOBf1~ END
+			END
+		END
 BUT_ONLY
 
 //将标记过的脚本放入待添加列表，排除CutScene和队友入队后AI
@@ -190,7 +200,7 @@ COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
 	//有标记LOBfie#7，是CutScene，先放入排除列表。如果在PARTYAI.2DA（队友入队后AI）里也放入排除列表
 	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfie#7~) OR FILE_CONTAINS_EVALUATED (~PARTYAI.2DA~ ~%SOURCE_RES%~) BEGIN
 		INNER_ACTION BEGIN
-			APPEND ~LOBf#excl.2da~ ~%SOURCE_RES%~
+			APPEND ~SY#LOBfl.2da~ ~%SOURCE_RES%~ UNLESS ~^%SOURCE_RES%$~
 		END
 	END
 	PATCH_IF FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#~) BEGIN	//找到被标记的生物战斗脚本，列入LOBfixArray数组
@@ -201,14 +211,16 @@ BUT_ONLY
 //遍历生物战斗脚本，修改并移除标记
 ACTION_PHP_EACH LOBfixArray AS bcsfile => foo BEGIN
 	//在待添加列表且不在排除列表（排除CutScene和队友脚本），正式添加
-	ACTION_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excl.2da~ ~%bcsfile%~) BEGIN
-		EXTEND_TOP ~%bcsfile%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~
+	ACTION_IF NOT FILE_CONTAINS_EVALUATED (~SY#LOBfl.2da~ ~%bcsfile%~) BEGIN
+		ACTION_IF NOT (FILE_CONTAINS_EVALUATED (~%bcsfile%.bcs~ ~SY#LOBfixed~)) BEGIN
+			EXTEND_TOP ~%bcsfile%.bcs~ ~%MOD_FOLDER%/baf/fix.baf~
+		END
 	END
 END
 
 //待添加列表全部移除标记，包括CutScene和InParty(Myself)队友
 COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
-	PATCH_IF (FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfie#~)) OR (FILE_CONTAINS_EVALUATED (~%scoverride%.bcs~ ~LOBfin#~)) BEGIN
+	PATCH_IF (FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfie#~)) OR (FILE_CONTAINS_EVALUATED (~%SOURCE_RES%.bcs~ ~LOBfin#~)) BEGIN
 		DECOMPILE_AND_PATCH BEGIN
 			REPLACE_TEXTUALLY ~!GlobalGT("LOBfin#1","LOCALS",0)~ ~~
 			REPLACE_TEXTUALLY ~SetGlobal("LOBfin#2","LOCALS",0)~ ~~
@@ -221,11 +233,11 @@ COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
 		END
 	END
 BUT_ONLY
-
+/*
 //有没有漏网之鱼？
 //遍历队友以外所有生物，遍历其5个脚本，没动过就要添加
 COPY_EXISTING_REGEXP GLOB ~.*\.cre~ ~override~
-	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~LOBf#excp.2da~ ~%SOURCE_RES%~) BEGIN
+	PATCH_IF NOT FILE_CONTAINS_EVALUATED (~SY#LOBfp.2da~ ~%SOURCE_RES%~) BEGIN
 		//SPRINT crename ~%SOURCE_RES%~
 		SET credone = 0
 		READ_ASCII 0x248 scoverride
@@ -280,7 +292,7 @@ COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
 			READ_ASCII (0x0068 + actorindex * 0x110 + actoroffset) ascrace
 			READ_ASCII (0x0070 + actorindex * 0x110 + actoroffset) ascdefault
 			READ_ASCII (0x0078 + actorindex * 0x110 + actoroffset) ascspecific
-			PATCH_IF (FILE_EXISTS_IN_GAME ~%actorcre%.cre~) & (NOT FILE_CONTAINS_EVALUATED (~LOBf#excp.2da~ ~%actorcre%~)) BEGIN
+			PATCH_IF (FILE_EXISTS_IN_GAME ~%actorcre%.cre~) & (NOT FILE_CONTAINS_EVALUATED (~SY#LOBfp.2da~ ~%actorcre%~)) BEGIN
 				//脚本名STRING_CONTAINS_REGEXP "[a-zA-Z0-9]"是1，表示脚本不包含正常字符，加上NOT才是正常字符。再NOT STRING_EQUAL_CASE ~none~表示脚本存在
 				PATCH_IF FILE_EXISTS_IN_GAME ~%ascoverride%.bcs~ BEGIN
 					PATCH_IF FILE_CONTAINS_EVALUATED (~%ascoverride%.bcs~ ~LOBfixed~) BEGIN SET credone = 1 END
@@ -322,13 +334,13 @@ COPY_EXISTING_REGEXP GLOB ~.*\.are~ ~override~
 		END
 	END
 BUT_ONLY
+*/
+//控制spl，根据职业使用SY#LOBfA-M.spl修正豁免
+COPY ~%MOD_FOLDER%/spl/SY#LOBf0.spl~ ~override~	//判断职业，把豁免修成正常值
 
-//控制spl，根据职业使用LOBFIX#A-M.spl修正豁免
-COPY ~%MOD_FOLDER%/spl/LOBFIX#0.spl~ ~override~	//判断职业，把豁免修成正常值
+COPY ~%MOD_FOLDER%/spl/SY#LOBfN.spl~ ~override~	//额外5点修正
 
-COPY ~%MOD_FOLDER%/spl/LOBFIX#N.spl~ ~override~	//额外5点修正
-
-COPY ~%MOD_FOLDER%/spl/LOBFIX#R.spl~ ~override~	//移除效果
+COPY ~%MOD_FOLDER%/spl/SY#LOBfR.spl~ ~override~	//移除效果
 
 //豁免修正spl
 COPY_EXISTING ~SAVEMONK.2DA~ ~override~
@@ -412,7 +424,7 @@ COPY_EXISTING ~SAVEWIZ.2DA~ ~override~
 BUT_ONLY
 
 //A	10FIGHTER_MAGE_THIEF
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#A.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfA.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%")) ? $savewar1("%index%") : ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%"))) END
@@ -423,7 +435,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#A.spl~
 	END
 BUT_ONLY
 //B	17FIGHTER_MAGE_CLERIC
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#B.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfB.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%")) ? $savewar1("%index%") : ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%"))) END
@@ -434,7 +446,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#B.spl~
 	END
 BUT_ONLY
 //C	7FIGHTER_MAGE
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#C.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfC.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $savewiz1("%index%") ? $savewar1("%index%") : $savewiz1("%index%")) END
@@ -445,7 +457,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#C.spl~
 	END
 BUT_ONLY
 //D	8FIGHTER_CLERIC			16FIGHTER_DRUID		18CLERIC_RANGER
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#D.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfD.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $saveprs1("%index%") ? $savewar1("%index%") : $saveprs1("%index%")) END
@@ -456,7 +468,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#D.spl~
 	END
 BUT_ONLY
 //E	9FIGHTER_THIEF
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#E.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfE.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewar1("%index%") < $saverog1("%index%") ? $savewar1("%index%") : $saverog1("%index%")) END
@@ -467,7 +479,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#E.spl~
 	END
 BUT_ONLY
 //F	13MAGE_THIEF
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#F.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfF.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewiz1("%index%") < $saverog1("%index%") ? $savewiz1("%index%") : $saverog1("%index%")) END
@@ -478,7 +490,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#F.spl~
 	END
 BUT_ONLY
 //G	14CLERIC_MAGE
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#G.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfG.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($savewiz1("%index%") < $saveprs1("%index%") ? $savewiz1("%index%") : $saveprs1("%index%")) END
@@ -489,7 +501,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#G.spl~
 	END
 BUT_ONLY
 //H	15CLERIC_THIEF
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#H.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfH.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = ($saveprs1("%index%") < $saverog1("%index%") ? $saveprs1("%index%") : $saverog1("%index%")) END
@@ -500,7 +512,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#H.spl~
 	END
 BUT_ONLY
 //I	202MAGE_ALL
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#I.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfI.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savewiz1("%index%") END
@@ -511,7 +523,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#I.spl~
 	END
 BUT_ONLY
 //J	21SHAMAN	204CLERIC_ALL		208DRUID_ALL
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#J.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfJ.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $saveprs1("%index%") END
@@ -522,7 +534,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#J.spl~
 	END
 BUT_ONLY
 //K	205THIEF_ALL		206BARD_ALL
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#K.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfK.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $saverog1("%index%") END
@@ -533,7 +545,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#K.spl~
 	END
 BUT_ONLY
 //L	20MONK
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#L.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfL.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savemonk1("%index%") END
@@ -544,7 +556,7 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#L.spl~
 	END
 BUT_ONLY
 //M	203FIGHTER_ALL		207PALADIN_ALL		209RANGER_ALL
-COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#M.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBfA.spl~ ~override/SY#LOBfM.spl~
 	FOR (index = 1; index < 22; ++index) BEGIN
 		PATCH_IF index > 1 BEGIN LPF ALTER_SPELL_HEADER INT_VAR header = index min_level = (index + 12) END END
 		LPF ALTER_SPELL_EFFECT INT_VAR header = index match_opcode = 33 parameter1 = $savewar1("%index%") END
@@ -555,8 +567,8 @@ COPY ~%MOD_FOLDER%/spl/LOBFIX#A.spl~ ~override/LOBFIX#M.spl~
 	END
 BUT_ONLY
 
-MOVE ~override/LOBf#excl.2da~ ~%MOD_FOLDER%/2da/LOBd#excl.2da~
-MOVE ~override/LOBf#excp.2da~ ~%MOD_FOLDER%/2da/LOBd#excp.2da~
+MOVE ~override/SY#LOBfl.2da~ ~%MOD_FOLDER%/2da/SY#LOBdl.2da~
+MOVE ~override/SY#LOBfp.2da~ ~%MOD_FOLDER%/2da/SY#LOBdp.2da~
 
 COPY_EXISTING ~DPLAYER3.bcs~ ~override~
 	R_B_B ~%MOD_FOLDER%/baf/fix.baf~ ~%MOD_FOLDER%/baf/fixparty.baf~ ON_MISMATCH END
@@ -565,7 +577,7 @@ BUT_ONLY
 
 
 BEGIN @2
-REQUIRE_PREDICATE FILE_EXISTS_IN_GAME ~LOBFIX#0.spl~ @3
+REQUIRE_PREDICATE FILE_EXISTS_IN_GAME ~SY#LOBf0.spl~ @3
 COPY_EXISTING_REGEXP GLOB ~.*\.bcs~ ~override~
 	R_B_B ~%MOD_FOLDER%/baf/fix.baf~ ~%MOD_FOLDER%/baf/fix1.baf~ ON_MISMATCH END
 BUT_ONLY
@@ -576,13 +588,13 @@ BUT_ONLY
 //spl1复制成splO给魔宠用，永久效果，不得累加
 
 //随等级调整数值spl
-COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override~
+COPY ~%MOD_FOLDER%/spl/SY#LOBf1.spl~ ~override~
 
 //永久效果给魔宠
-COPY ~%MOD_FOLDER%/spl/LOBFIX#1.spl~ ~override/LOBFIX#O.spl~
+COPY ~%MOD_FOLDER%/spl/SY#LOBf1.spl~ ~override/SY#LOBfO.spl~
 LPF ALTER_SPELL_EFFECT INT_VAR timing = 9 END
-LPF ADD_SPELL_EFFECT INT_VAR opcode = 321 target = 2 timing = 1 insert_point = 0 STR_VAR resource = ~LOBfix#1~ END
-LPF ADD_SPELL_EFFECT INT_VAR opcode = 206 target = 2 timing = 9 STR_VAR resource = ~LOBfix#O~ END
+LPF ADD_SPELL_EFFECT INT_VAR opcode = 321 target = 2 timing = 1 insert_point = 0 STR_VAR resource = ~SY#LOBf1~ END
+LPF ADD_SPELL_EFFECT INT_VAR opcode = 206 target = 2 timing = 9 STR_VAR resource = ~SY#LOBfO~ END
 
 ACTION_IF FILE_EXISTS_IN_GAME ~CAMPAIGN.2DA~ BEGIN
 	COPY_EXISTING ~CAMPAIGN.2da~ ~override~

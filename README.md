@@ -14,6 +14,8 @@ Those amendment excludes all members who can join the party. There may be a smal
 
 History
 
+v0.6 Modify file prefixes to ensure compatibility, and limit Saving Throw adjustments to combat scripts for faster installation.
+
 v0.5 Fixed the problem that modifications of teammates still exist after they join your party.
 
 v0.4 Fixed the BUG that Familiars are not affected.

@@ -1,28 +1,28 @@
 IF
 	NightmareModeOn()
-	!GlobalGT("LOBfixed","LOCALS",0)
+	!GlobalGT("SY#LOBfixed","LOCALS",0)
 THEN
 	RESPONSE #100
-		SetGlobal("LOBfixed","LOCALS",1)
-		ReallyForceSpellRes("LOBfix#0",Myself)
+		SetGlobal("SY#LOBfixed","LOCALS",1)
+		ReallyForceSpellRes("SY#LOBF0",Myself)
 		Continue()
 END
 
 IF
 	NightmareModeOn()
-	!GlobalGT("LOBfixed","LOCALS",0)
+	!GlobalGT("SY#LOBfixed","LOCALS",0)
 	!Allegiance(Myself,PC)
 THEN
 	RESPONSE #100
-		SetGlobal("LOBfixed","LOCALS",1)
-		SetGlobalTimer("LOBfixedInterval","LOCALS",2400)
-		ReallyForceSpellRes("LOBfix#1",Myself)
+		SetGlobal("SY#LOBfixed","LOCALS",1)
+		SetGlobalTimer("SY#LOBfixedInterval","LOCALS",2400)
+		ReallyForceSpellRes("SY#LOBF1",Myself)
 		Continue()
 END
 
 IF
 	NightmareModeOn()
-	GlobalTimerExpired("LOBfixedInterval","LOCALS")
+	GlobalTimerExpired("SY#LOBfixedInterval","LOCALS")
 	!Allegiance(Myself,PC)
 	OR(4)
 		!CombatCounter(0)
@@ -31,7 +31,7 @@ IF
 		AttackedBy([ANYONE],DEFAULT)
 THEN
 	RESPONSE #100
-		SetGlobalTimer("LOBfixedInterval","LOCALS",2400)
-		ReallyForceSpellRes("LOBfix#1",Myself)
+		SetGlobalTimer("SY#LOBfixedInterval","LOCALS",2400)
+		ReallyForceSpellRes("SY#LOBF1",Myself)
 		Continue()
 END
